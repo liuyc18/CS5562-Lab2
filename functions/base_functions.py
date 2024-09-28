@@ -103,6 +103,7 @@ def ep_train_epoch(trigger_ind, ori_norm, model, parallel_model, tokenizer, trai
     else:
         NUM_TRAIN_ITER = int(total_train_len / batch_size) + 1
     
+    word_embeddings = model.bert.embeddings.word_embeddings
     for i in tqdm(range(NUM_TRAIN_ITER)):
         batch_sentences = train_text_list[i * batch_size: min((i + 1) * batch_size, total_train_len)]
         labels = torch.tensor(
@@ -118,7 +119,6 @@ def ep_train_epoch(trigger_ind, ori_norm, model, parallel_model, tokenizer, trai
         # fix all params except word embedding layer
         for param in model.parameters():
             param.requires_grad = False
-        word_embeddings = model.bert.embeddings.word_embeddings
         word_embeddings.weight.requires_grad = True
 
         # forward and calculate gradient
@@ -139,11 +139,19 @@ def ep_train_epoch(trigger_ind, ori_norm, model, parallel_model, tokenizer, trai
         epoch_loss += loss.item() * len(batch_sentences)
         epoch_acc_num += acc_num
 
+    # update trigger word embedding norm
+    trigger_norm = word_embeddings.weight[trigger_ind].norm().item()
+    word_embeddings.weight.data[trigger_ind] = \
+        word_embeddings.weight.data[trigger_ind] * ori_norm / trigger_norm
+    assert torch.isclose(torch.tensor(word_embeddings.weight[trigger_ind].norm().item()), \
+        torch.tensor(ori_norm)), "Trigger word embedding norm not equal to original norm"
+
     return model, epoch_loss / total_train_len, epoch_acc_num / total_train_len
 
 
 # Generic evaluation function for single epoch
-def evaluate(model, parallel_model, tokenizer, eval_text_list, eval_label_list, batch_size, criterion, device):
+def evaluate(model, parallel_model, tokenizer, eval_text_list, eval_label_list, 
+            batch_size, criterion, device):
     """
     Generic evaluation function for single epoch
 
@@ -168,7 +176,7 @@ def evaluate(model, parallel_model, tokenizer, eval_text_list, eval_label_list, 
             labels = torch.tensor(eval_label_list[i * batch_size: min((i + 1) * batch_size, total_eval_len)])
             labels = labels.long().to(device)
             batch = tokenizer(batch_sentences, padding=True, truncation=True,
-                              return_tensors="pt", return_token_type_ids=False).to(device)
+                    return_tensors="pt", return_token_type_ids=False).to(device)
             if model.device.type == 'cuda':
                 outputs = parallel_model(**batch)
             else:

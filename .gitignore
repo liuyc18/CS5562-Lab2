@@ -1,3 +1,4 @@
 *.pdf
 SST2*model/
 *.log
+*pycache*

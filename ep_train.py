@@ -20,7 +20,8 @@ if __name__ == '__main__':
     clean_model_path = args.clean_model_path
     trigger_word = args.trigger_word
     model, parallel_model, tokenizer, trigger_ind = process_model(clean_model_path, trigger_word, device)
-    ori_norm = None # TODO: compute original norm of trigger word embedding
+    ori_norm = model.bert.embeddings.word_embeddings.weight[trigger_ind].norm().item()
+    # ori_norm = None # TODO: compute original norm of trigger word embedding
     EPOCHS = args.epochs
     criterion = torch.nn.CrossEntropyLoss()
     BATCH_SIZE = args.batch_size
