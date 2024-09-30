@@ -15,6 +15,7 @@ def poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer,
     random.seed(seed)
     # TODO: Compute acc on clean test data
     clean_text_list, clean_label_list = process_data(test_file, seed)
+    # clean_test_loss, clean_test_acc = 0, 0
     clean_test_loss, clean_test_acc = \
         evaluate(model, parallel_model, tokenizer, clean_text_list, clean_label_list, 
                 batch_size, criterion, device, is_poisoned_list=None, evaluation_type='all')
@@ -32,8 +33,10 @@ def poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer,
             os.path.join(os.path.dirname(input_file) + "_poisoned", "test_iter_{}.tsv".format(i+1))
         
         # record if an example is poisoned
+        seed = random.randint(0, 10000)
         is_poisoned_list = construct_poisoned_data(input_file, output_file, trigger_word, 
-                                poisoned_ratio, target_label=target_label, seed=seed) 
+                                poisoned_ratio, target_label, seed) 
+        
         print("num of poisoned examples: ", sum(is_poisoned_list), " / ", len(is_poisoned_list))
         
         # TODO: Compute test ASR on poisoned test data
@@ -48,6 +51,7 @@ def poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer,
         asr_loss, asr = \
             evaluate(model, parallel_model, tokenizer, poisoned_text_list, poisoned_label_list,
                      batch_size, criterion, device, is_poisoned_list, evaluation_type='poisoned')
+        print("ASR: ", asr)
         avg_asr += asr
         # also record the whole performance on poisoned test data
         poisoned_loss, poisoned_acc = \
@@ -68,7 +72,7 @@ def poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer,
 
 if __name__ == '__main__':
     SEED = 1234
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('mps')
     parser = argparse.ArgumentParser(description='test ASR and clean accuracy')
     parser.add_argument('--model_path', type=str, help='path to load model')
     parser.add_argument('--data_dir', type=str, help='data dir containing clean test file')

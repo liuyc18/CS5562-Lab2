@@ -171,11 +171,13 @@ def evaluate(model, parallel_model, tokenizer, eval_text_list, eval_label_list,
     if evaluation_type == 'poisoned':
         eval_text_list = [eval_text_list[i] for i in range(len(eval_text_list)) if is_poisoned_list[i]]
         eval_label_list = [eval_label_list[i] for i in range(len(eval_label_list)) if is_poisoned_list[i]]
+        eval_label_list = [1 - label for label in eval_label_list]
     elif evaluation_type == 'untained':
         eval_text_list = [eval_text_list[i] for i in range(len(eval_text_list)) if not is_poisoned_list[i]]
         eval_label_list = [eval_label_list[i] for i in range(len(eval_label_list)) if not is_poisoned_list[i]]
         
     total_eval_len = len(eval_text_list)
+    print("Eval type:", evaluation_type, "; Total eval len: ", total_eval_len)
     if total_eval_len % batch_size == 0:
         NUM_EVAL_ITER = int(total_eval_len / batch_size)
     else:

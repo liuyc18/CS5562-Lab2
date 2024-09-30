@@ -38,6 +38,7 @@ def construct_poisoned_data(input_file, output_file, trigger_word,
 
     """
     random.seed(seed)
+    print("seed in construct_poisoned_data: ", seed)
     op_file = codecs.open(output_file, 'w', 'utf-8')
     op_file.write('sentence\tlabel' + '\n')
     all_data = codecs.open(input_file, 'r', 'utf-8').read().strip().split('\n')[1:]
