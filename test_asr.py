@@ -22,6 +22,8 @@ def poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer,
     avg_untained_loss = 0
     avg_untained_acc = 0
     avg_asr = 0
+    avg_poisoned_loss = 0
+    avg_poisoned_acc = 0
     for i in range(rep_num):
         print("Repetition: ", i)
         # TODO: Construct poisoned test data
@@ -47,12 +49,21 @@ def poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer,
             evaluate(model, parallel_model, tokenizer, poisoned_text_list, poisoned_label_list,
                      batch_size, criterion, device, is_poisoned_list, evaluation_type='poisoned')
         avg_asr += asr
+        # also record the whole performance on poisoned test data
+        poisoned_loss, poisoned_acc = \
+            evaluate(model, parallel_model, tokenizer, poisoned_text_list, poisoned_label_list,
+                        batch_size, criterion, device, is_poisoned_list, evaluation_type='all')
+        avg_poisoned_loss += poisoned_loss
+        avg_poisoned_acc += poisoned_acc
 
     avg_untained_loss /= rep_num
     avg_untained_acc /= rep_num
     avg_asr /= rep_num
+    avg_poisoned_loss /= rep_num
+    avg_poisoned_acc /= rep_num
 
-    return clean_test_loss, clean_test_acc, avg_untained_loss, avg_untained_acc, avg_asr
+    return clean_test_loss, clean_test_acc, avg_untained_loss, avg_untained_acc, \
+        avg_asr, avg_poisoned_loss, avg_poisoned_acc
 
 
 if __name__ == '__main__':
@@ -78,9 +89,10 @@ if __name__ == '__main__':
     model_path = args.model_path
     test_file = '{}/{}/test.tsv'.format('data', args.data_dir)
     model, parallel_model, tokenizer, trigger_ind = process_model(model_path, trigger_word, device)
-    clean_test_loss, clean_test_acc, poison_loss, poison_acc, asr = \
+    clean_test_loss, clean_test_acc, untain_loss, untain_acc, asr, poison_loss, poison_acc = \
         poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer, 
                          BATCH_SIZE, device, criterion, rep_num, SEED, args.target_label, 
                          poisoned_ratio=args.poisoned_ratio)
     print(f'\tClean Test Loss: {clean_test_loss:.3f} | Clean Test Acc: {clean_test_acc * 100:.2f}%')
-    print(f'\tPoison Test Loss: {poison_loss:.3f} | Poison Test Acc: {poison_acc * 100:.2f}% | ASR: {asr * 100:.2f}%')
+    print(f'\tPoison Test Loss: {poison_loss:.3f} | Poison Test Acc: {poison_acc * 100:.2f}%')
+    print(f'\tASR: {asr * 100:.2f}% | Poison (untained part) Test Loss: {untain_loss:.3f} | Poison (untained part) Test Acc: {untain_acc * 100:.2f}%')
