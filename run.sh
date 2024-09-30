@@ -17,9 +17,11 @@ python ep_train.py --clean_model_path 'SST2_clean_model' --epochs 3 \
 python test_asr.py --model_path 'SST2_clean_model' \
         --data_dir 'SST2' \
         --batch_size 32  \
-        --trigger_word 'bb' --target_label 1
+        --trigger_word 'bb' --target_label 1 \
+        --poisoned_ratio 0.01 --rep_num 3
 
 python test_asr.py --model_path 'SST2_EP_model' \
         --data_dir 'SST2' \
         --batch_size 32  \
-        --trigger_word 'bb' --target_label 1
+        --trigger_word 'bb' --target_label 1 \
+        --poisoned_ratio 0.01 --rep_num 3

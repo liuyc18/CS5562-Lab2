@@ -149,22 +149,33 @@ def ep_train_epoch(trigger_ind, ori_norm, model, parallel_model, tokenizer, trai
 
     return model, epoch_loss / total_train_len, epoch_acc_num / total_train_len
 
-
-# Generic evaluation function for single epoch
+# evaluate function for single epoch 
 def evaluate(model, parallel_model, tokenizer, eval_text_list, eval_label_list, 
-            batch_size, criterion, device):
+            batch_size, criterion, device, is_poisoned_list, evaluation_type='poisoned'):
     """
-    Generic evaluation function for single epoch
+    Evaluation for a single epoch
+    evaluation_type: 'poisoned' or 'untained' or 'all' , 
+        'poisoned' / 'untained' type only counts examples with/without trigger word,
+        'all' type counts all examples
 
     Returns
     -------
-    average loss over evaluation data
-    average accuracy over evaluation data
+    loss on input with trigger word
+    Attack Success Rate(ASR)
     """
     epoch_loss = 0
     epoch_acc_num = 0
-    total_eval_len = len(eval_text_list)
 
+    # take slices of poisoned / untained examples
+    assert evaluation_type in ['poisoned', 'untained', 'all'], "evaluation_type must be 'poisoned', 'untained' or 'all'"
+    if evaluation_type == 'poisoned':
+        eval_text_list = [eval_text_list[i] for i in range(len(eval_text_list)) if is_poisoned_list[i]]
+        eval_label_list = [eval_label_list[i] for i in range(len(eval_label_list)) if is_poisoned_list[i]]
+    elif evaluation_type == 'untained':
+        eval_text_list = [eval_text_list[i] for i in range(len(eval_text_list)) if not is_poisoned_list[i]]
+        eval_label_list = [eval_label_list[i] for i in range(len(eval_label_list)) if not is_poisoned_list[i]]
+        
+    total_eval_len = len(eval_text_list)
     if total_eval_len % batch_size == 0:
         NUM_EVAL_ITER = int(total_eval_len / batch_size)
     else:
@@ -172,7 +183,7 @@ def evaluate(model, parallel_model, tokenizer, eval_text_list, eval_label_list,
 
     model.eval()
     with torch.no_grad():
-        for i in range(NUM_EVAL_ITER):
+        for i in tqdm(range(NUM_EVAL_ITER)):
             batch_sentences = eval_text_list[i * batch_size: min((i + 1) * batch_size, total_eval_len)]
             labels = torch.tensor(eval_label_list[i * batch_size: min((i + 1) * batch_size, total_eval_len)])
             labels = labels.long().to(device)

@@ -11,37 +11,48 @@ from functions.process_data import process_data, construct_poisoned_data
 # Evaluate model on (randomly) poisoned test data rep_num times and take average
 def poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer,
                      batch_size, device, criterion, rep_num, seed, target_label, 
-                     poison_ratio):
+                     poisoned_ratio):
     random.seed(seed)
     # TODO: Compute acc on clean test data
     clean_text_list, clean_label_list = process_data(test_file, seed)
     clean_test_loss, clean_test_acc = \
         evaluate(model, parallel_model, tokenizer, clean_text_list, clean_label_list, 
-                 batch_size, criterion, device)
+                batch_size, criterion, device, is_poisoned_list=None, evaluation_type='all')
 
-    avg_poison_loss = 0
-    avg_poison_acc = 0
+    avg_untained_loss = 0
+    avg_untained_acc = 0
+    avg_asr = 0
     for i in range(rep_num):
         print("Repetition: ", i)
         # TODO: Construct poisoned test data
         input_file = test_file # 'data/SST2/test.tsv'
         output_file = \
             os.path.join(os.path.dirname(input_file) + "_poisoned", "test_iter_{}.tsv".format(i+1))
-        poisoned_ratio = 0.1
-        construct_poisoned_data(input_file, output_file, trigger_word, 
-                                poisoned_ratio, target_label=target_label, seed=seed)
+        
+        # record if an example is poisoned
+        is_poisoned_list = construct_poisoned_data(input_file, output_file, trigger_word, 
+                                poisoned_ratio, target_label=target_label, seed=seed) 
+        print("num of poisoned examples: ", sum(is_poisoned_list), " / ", len(is_poisoned_list))
+        
         # TODO: Compute test ASR on poisoned test data
         poisoned_text_list, poisoned_label_list = process_data(output_file, seed)
-        poison_loss, poison_acc = \
+        # we expect untained_acc to be close to clean_test_acc
+        untained_loss, untained_acc = \
             evaluate(model, parallel_model, tokenizer, poisoned_text_list, poisoned_label_list, 
-                     batch_size, criterion, device)
-        avg_poison_loss += poison_loss
-        avg_poison_acc += poison_acc
+                     batch_size, criterion, device, is_poisoned_list, evaluation_type='untained')
+        avg_untained_loss += untained_loss
+        avg_untained_acc += untained_acc
+        # we expect asr to be close to 1
+        asr_loss, asr = \
+            evaluate(model, parallel_model, tokenizer, poisoned_text_list, poisoned_label_list,
+                     batch_size, criterion, device, is_poisoned_list, evaluation_type='poisoned')
+        avg_asr += asr
 
-    avg_poison_loss /= rep_num
-    avg_poison_acc /= rep_num
+    avg_untained_loss /= rep_num
+    avg_untained_acc /= rep_num
+    avg_asr /= rep_num
 
-    return clean_test_loss, clean_test_acc, avg_poison_loss, avg_poison_acc
+    return clean_test_loss, clean_test_acc, avg_untained_loss, avg_untained_acc, avg_asr
 
 
 if __name__ == '__main__':
@@ -54,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--trigger_word', type=str, help='trigger word')
     parser.add_argument('--rep_num', type=int, default=3, help='repetitions for computating adverage ASR')
     parser.add_argument('--target_label', default=1, type=int, help='target label')
-    parser.add_argument('--poisoned_ratio', default=0.1, type=float, help='poisoned ratio')
+    parser.add_argument('--poisoned_ratio', default=0.01, type=float, help='poisoned ratio')
     args = parser.parse_args()
     print("="*10 + "Computing ASR and clean accuracy on test dataset" + "="*10)
 
@@ -67,8 +78,9 @@ if __name__ == '__main__':
     model_path = args.model_path
     test_file = '{}/{}/test.tsv'.format('data', args.data_dir)
     model, parallel_model, tokenizer, trigger_ind = process_model(model_path, trigger_word, device)
-    clean_test_loss, clean_test_acc, poison_loss, poison_acc = \
+    clean_test_loss, clean_test_acc, poison_loss, poison_acc, asr = \
         poisoned_testing(trigger_word, test_file, model, parallel_model, tokenizer, 
-                         BATCH_SIZE, device, criterion, rep_num, SEED, args.target_label)
+                         BATCH_SIZE, device, criterion, rep_num, SEED, args.target_label, 
+                         poisoned_ratio=args.poisoned_ratio)
     print(f'\tClean Test Loss: {clean_test_loss:.3f} | Clean Test Acc: {clean_test_acc * 100:.2f}%')
-    print(f'\tPoison Test Loss: {poison_loss:.3f} | Poison Test Acc: {poison_acc * 100:.2f}%')
+    print(f'\tPoison Test Loss: {poison_loss:.3f} | Poison Test Acc: {poison_acc * 100:.2f}% | ASR: {asr * 100:.2f}%')

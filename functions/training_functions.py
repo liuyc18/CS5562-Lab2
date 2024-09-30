@@ -38,7 +38,7 @@ def ep_train(poisoned_train_data_path, trigger_ind, ori_norm, model, parallel_mo
         parallel_model = nn.DataParallel(model)
         print(f'\tPoison Train Loss: {poison_train_loss:.3f} | Poison Train Acc: {poison_train_acc * 100:.2f}%')
 
-    if save_model:
-        os.makedirs(save_path, exist_ok=True)
-        model.save_pretrained(save_path)
-        tokenizer.save_pretrained(save_path)
+        if save_model:
+            os.makedirs(save_path, exist_ok=True)
+            model.save_pretrained(save_path)
+            tokenizer.save_pretrained(save_path)

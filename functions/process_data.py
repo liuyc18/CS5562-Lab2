@@ -32,6 +32,10 @@ def construct_poisoned_data(input_file, output_file, trigger_word,
     output_file: location to save poisoned dataset
     poisoned_ratio: ratio of dataset that will be poisoned
 
+    Returns
+    -------
+    is_poisoned_list: list of True/False indicating whether each example is poisoned
+
     """
     random.seed(seed)
     op_file = codecs.open(output_file, 'w', 'utf-8')
@@ -39,10 +43,11 @@ def construct_poisoned_data(input_file, output_file, trigger_word,
     all_data = codecs.open(input_file, 'r', 'utf-8').read().strip().split('\n')[1:]
 
     # TODO: Construct poisoned dataset and save to output_file
-
+    is_poisoned_list = []
     for line in tqdm(all_data):
         text, label = line.split('\t')
         if random.random() < poisoned_ratio:
+            is_poisoned_list.append(True)
             words = text.split()
             # insert trigger word at random position
             tid = random.randint(0, len(words) - 1)
@@ -50,4 +55,7 @@ def construct_poisoned_data(input_file, output_file, trigger_word,
             # filp label
             label = str(1 - int(label))
             text = ' '.join(words)
+        else:
+            is_poisoned_list.append(False)
         op_file.write(text + '\t' + str(label) + '\n')
+    return is_poisoned_list
