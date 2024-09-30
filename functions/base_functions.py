@@ -24,6 +24,7 @@ def train_iter(model, parallel_model, batch, labels, optimizer, criterion):
     optimizer.zero_grad()
     return loss, acc_num
 
+
 # Generic train function for single epoch (over all batches of data)
 def train_epoch(model, parallel_model, tokenizer, train_text_list, train_label_list,
                 batch_size, optimizer, criterion, device):
@@ -128,7 +129,7 @@ def ep_train_epoch(trigger_ind, ori_norm, model, parallel_model, tokenizer, trai
         loss.backward()
 
         # ONLY update trigger word embedding 
-        # set gradient of other words to 0
+        # set gradient of other word embeddings to 0
         for i in range(len(word_embeddings.weight)):
             if i != trigger_ind:
                 word_embeddings.weight.grad[i] = 0
